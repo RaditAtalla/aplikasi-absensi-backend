@@ -17,6 +17,32 @@ app.use(express.json());
 app.use(cors());
 
 app.get("/", (req, res) => {});
+app.post("/", validateAuth, async (req, res) => {
+  const { latitude, longitude } = req.body;
+  const { id } = req.userData;
+
+  if (!latitude || !longitude) {
+    return res.sendStatus(400);
+  }
+
+  try {
+    const [lokasi] = await connection.query(
+      "INSERT INTO lokasi(latitude, longitude) VALUES(?, ?)",
+      [latitude, longitude]
+    );
+
+    if (lokasi.affectedRows > 0) {
+      await connection.query(
+        "INSERT INTO absensi(pengguna_id, lokasi_id, waktu) VALUES(?, ?, now())",
+        [id, lokasi.insertId]
+      );
+
+      res.send("done");
+    }
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
 app.post("/login", async (req, res) => {
   try {
     const { name, password } = req.body;
