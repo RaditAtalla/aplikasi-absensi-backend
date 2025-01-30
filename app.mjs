@@ -1,7 +1,10 @@
 import express from "express";
 import mysql from "mysql2/promise";
 import cors from "cors";
+import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
 
+dotenv.config();
 const app = express();
 
 const connection = await mysql.createConnection({
@@ -16,18 +19,20 @@ app.use(cors());
 app.get("/", (req, res) => {});
 app.post("/login", async (req, res) => {
   try {
-    const { nama, password } = req.body;
+    const { name, password } = req.body;
 
     const [result] = await connection.query(
       "SELECT * FROM pengguna WHERE nama = ?",
-      [nama]
+      [name]
     );
-    if (!result.length) return res.send("user tidak ditemukan");
+    if (!result.length) return res.sendStatus(404);
 
     const user = result[0];
-    if (user.password != password) return res.send("password salah");
+    if (user.password != password) return res.sendStatus(401);
 
-    res.send("login berhasil");
+    const token = jwt.sign(user, process.env.JWT_ACCESS_TOKEN);
+
+    res.status(200).send(token);
   } catch (error) {
     console.error(error.message);
   }
