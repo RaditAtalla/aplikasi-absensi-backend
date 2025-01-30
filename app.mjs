@@ -37,5 +37,27 @@ app.post("/login", async (req, res) => {
     console.error(error.message);
   }
 });
+app.get("/user", validateAuth, async (req, res) => {
+  res.send(req.userData);
+});
+
+function validateAuth(req, res, next) {
+  const { authorization } = req.headers;
+  if (!authorization) {
+    return res.sendStatus(401);
+  }
+
+  const token = authorization.split(" ")[1];
+  const secret = process.env.JWT_ACCESS_TOKEN;
+
+  try {
+    const jwtDecode = jwt.verify(token, secret);
+    req.userData = jwtDecode;
+  } catch (error) {
+    return res.sendStatus(401);
+  }
+
+  next();
+}
 
 app.listen(3000);
