@@ -19,11 +19,8 @@ const connection = await mysql.createConnection({
 
 app.use(express.json());
 app.use(cors());
-app.use(express.static("public"));
 
-app.get("/", (req, res) => {
-  res.send("absensi");
-});
+app.get("/", (req, res) => {});
 app.post("/", validateAuth, async (req, res) => {
   const { latitude, longitude } = req.body;
   const { id } = req.userData;
