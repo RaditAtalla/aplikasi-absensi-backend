@@ -36,15 +36,27 @@ app.post("/", validateAuth, async (req, res) => {
     );
 
     if (lokasi.affectedRows > 0) {
+      const date = new Date();
+      const wibDate = date.toLocaleTimeString("en", {
+        timeStyle: "short",
+        hour12: false,
+        timeZone: "Asia/Jakarta",
+      });
+
+      let status = "TIDAK TERLAMBAT";
+      if (wibDate > "07:00") {
+        status = "TERLAMBAT";
+      }
+
       await connection.query(
-        "INSERT INTO absensi(pengguna_id, lokasi_id, waktu) VALUES(?, ?, now())",
-        [id, lokasi.insertId]
+        "INSERT INTO absensi(pengguna_id, lokasi_id, waktu, status) VALUES(?, ?, now(), ?)",
+        [id, lokasi.insertId, status]
       );
 
       res.send("done");
     }
   } catch (error) {
-    res.status(500).send(error);
+    res.status(500).send(error.message);
   }
 });
 app.get("/download-data", async (req, res) => {
