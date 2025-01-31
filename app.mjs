@@ -3,6 +3,10 @@ import mysql from "mysql2/promise";
 import cors from "cors";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
+import fastCsv from "fast-csv";
+import { fileURLToPath } from "url";
 
 dotenv.config();
 const app = express();
@@ -15,8 +19,11 @@ const connection = await mysql.createConnection({
 
 app.use(express.json());
 app.use(cors());
+app.use(express.static("public"));
 
-app.get("/", (req, res) => {});
+app.get("/", (req, res) => {
+  res.send("absensi");
+});
 app.post("/", validateAuth, async (req, res) => {
   const { latitude, longitude } = req.body;
   const { id } = req.userData;
@@ -41,6 +48,35 @@ app.post("/", validateAuth, async (req, res) => {
     }
   } catch (error) {
     res.status(500).send(error);
+  }
+});
+app.get("/download-data", async (req, res) => {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+
+  try {
+    const [result] = await connection.query(
+      "SELECT absensi.waktu, absensi.status, pengguna.nama, pengguna.email, pengguna.nisn FROM absensi INNER JOIN pengguna ON pengguna.id = absensi.pengguna_id"
+    );
+
+    const filePath = path.join(__dirname, "data.csv");
+    const writeStream = fs.createWriteStream(filePath);
+    const csvStream = fastCsv.format({ headers: true });
+
+    csvStream.pipe(writeStream);
+    result.forEach((row) => csvStream.write(row));
+    csvStream.end();
+
+    writeStream.on("finish", () => {
+      res.download(filePath, "data.csv", (err) => {
+        if (err) {
+          console.error(err);
+        }
+        fs.unlinkSync(filePath);
+      });
+    });
+  } catch (error) {
+    res.send(error.message);
   }
 });
 app.post("/login", async (req, res) => {
