@@ -174,5 +174,15 @@ app.post("/login", async (req, res) => {
 app.get("/user", validateAuth, async (req, res) => {
   res.send(req.userData);
 });
+// fungsi ini untuk mengambil data absensi sebelumnya (history)
+app.get("/history", validateAuth, async (req, res) => {
+  const { id } = req.userData;
+
+  const [result] = await connection.query(
+    "SELECT * FROM absensi WHERE pengguna_id = ?",
+    [id]
+  );
+  res.send(result);
+});
 
 app.listen(3000);
