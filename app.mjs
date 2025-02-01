@@ -53,6 +53,8 @@ function validateAuth(req, res, next) {
 app.use(express.json());
 // fungsi ini untuk memperbolehkan server frontend untuk berhubungan dengan backend
 app.use(cors());
+// fungsi ini untuk set folder public sebagai folder asset statis
+app.use("/public", express.static("public"));
 
 // fungsi ini untuk mengatur POST request ke "/"
 app.post("/", validateAuth, async (req, res) => {
