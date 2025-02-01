@@ -152,8 +152,6 @@ app.post("/login", async (req, res) => {
       "SELECT * FROM pengguna WHERE nama = ?",
       [name]
     );
-    // jika tidak ditemukan maka mengirimkan kode HTTP 404
-    if (!result.length) return res.sendStatus(404);
 
     // mengambil data dari hasil query
     const user = result[0];
@@ -166,8 +164,8 @@ app.post("/login", async (req, res) => {
     // mengirim token dan kode HTTP 200
     res.status(200).send(token);
   } catch (error) {
-    // jika query pertama error maka akan mengeluarkan pesan error
-    console.error(error.message);
+    // jika user tidak ditemukan maka mengirimkan kode HTTP 404
+    res.sendStatus(404);
   }
 });
 // fungsi ini untuk mengambil data user yang sedang log in
