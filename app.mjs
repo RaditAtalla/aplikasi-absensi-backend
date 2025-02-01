@@ -59,7 +59,7 @@ app.use("/public", express.static("public"));
 // fungsi ini untuk mengatur POST request ke "/"
 app.post("/", validateAuth, async (req, res) => {
   // menerima latitude dan longitude yang diparsing dari JSON dari frontend
-  const { latitude, longitude } = req.body;
+  const { latitude, longitude, type, period, periodSlug } = req.body;
   // mengambil id user yang sedang login
   const { id } = req.userData;
 
@@ -78,13 +78,42 @@ app.post("/", validateAuth, async (req, res) => {
     // mengecek apakah query sebelumnya berhasil atau tidak
     if (lokasi.affectedRows > 0) {
       // memasukkan waktu sekarang (timezone UTC) ke variable date
-      const date = new Date();
+      const today = new Date();
       // mengubah timezone dari UTC ke WIB
-      const wibDate = date.toLocaleTimeString("en", {
+      const wibDate = today.toLocaleTimeString("en", {
         timeStyle: "short",
         hour12: false,
         timeZone: "Asia/Jakarta",
       });
+
+      const month = [
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+      ];
+
+      const days = [
+        "Senin",
+        "Selasa",
+        "Rabu",
+        "Kamis",
+        "Jumat",
+        "Sabtu",
+        "Minggu",
+      ];
+
+      const date = `${today.getDate()} ${
+        month[today.getMonth()]
+      } ${today.getFullYear()}`;
 
       // inisiasi variable status terlambat atau tidak
       let status = "";
@@ -97,18 +126,62 @@ app.post("/", validateAuth, async (req, res) => {
         status = "TIDAK TERLAMBAT";
       }
 
-      // melakukan query ke database table absensi
-      await connection.query(
-        "INSERT INTO absensi(pengguna_id, lokasi_id, waktu, status) VALUES(?, ?, now(), ?)",
-        [id, lokasi.insertId, status]
+      const todayDay = days[today.getDay()];
+
+      const [getDay] = await connection.query(
+        "SELECT * FROM hari WHERE tanggal = ?",
+        [date]
       );
 
-      // mengirim kode HTTP 200 (OK)
-      res.sendStatus(200);
+      if (getDay.length > 0) {
+        const dayId = getDay[0].id;
+
+        const [absensi] = await connection.query(
+          "INSERT INTO absensi(pengguna_id, lokasi_id, iso_waktu, status, periode, periode_slug, tipe_absensi, jam, hari_id) VALUES(?, ?, now(), ?, ?, ?, ?, ?, ?)",
+          [
+            id,
+            lokasi.insertId,
+            status,
+            period,
+            periodSlug,
+            type,
+            wibDate,
+            dayId,
+          ]
+        );
+
+        res.sendStatus(200);
+      } else {
+        const [day] = await connection.query(
+          "INSERT INTO hari(tanggal, hari) VALUES(?, ?)",
+          [date, todayDay]
+        );
+
+        const dayId = day.insertId;
+
+        // melakukan query ke database table absensi
+        const [absensi] = await connection.query(
+          "INSERT INTO absensi(pengguna_id, lokasi_id, iso_waktu, status, periode, periode_slug, tipe_absensi, jam, hari_id) VALUES(?, ?, now(), ?, ?, ?, ?, ?, ?)",
+          [
+            id,
+            lokasi.insertId,
+            status,
+            period,
+            periodSlug,
+            type,
+            wibDate,
+            dayId,
+          ]
+        );
+
+        // mengirim kode HTTP 200 (OK)
+        res.sendStatus(200);
+      }
     }
   } catch (error) {
     // jika query pertama gagal, maka kode HTTP 500 akan terkirim
     res.status(500).send(error.message);
+    console.log(error.message);
   }
 });
 // fungsi ini untuk mendownload data untuk admin
@@ -118,7 +191,7 @@ app.get("/download-data", async (req, res) => {
 
   try {
     const [result] = await connection.query(
-      "SELECT absensi.waktu, absensi.status, pengguna.nama, pengguna.email, pengguna.nisn FROM absensi INNER JOIN pengguna ON pengguna.id = absensi.pengguna_id"
+      "SELECT absensi.jam, absensi.status, pengguna.nama, pengguna.email, pengguna.nisn FROM absensi INNER JOIN pengguna ON pengguna.id = absensi.pengguna_id"
     );
 
     const filePath = path.join(__dirname, "data.csv");
@@ -143,14 +216,15 @@ app.get("/download-data", async (req, res) => {
 });
 // fungsi ini untuk mengatur login user
 app.post("/login", async (req, res) => {
+  console.log("LOGIN");
   try {
     // menerima name dan password dari req.body yang dikirimkan oleh frontend
-    const { name, password } = req.body;
+    const { email, password } = req.body;
 
     // melakukan query untuk mencari akun yang sesuai dengan name tersebut
     const [result] = await connection.query(
-      "SELECT * FROM pengguna WHERE nama = ?",
-      [name]
+      "SELECT * FROM pengguna WHERE email = ?",
+      [email]
     );
 
     // mengambil data dari hasil query
@@ -180,6 +254,103 @@ app.get("/history", validateAuth, async (req, res) => {
     "SELECT * FROM absensi WHERE pengguna_id = ?",
     [id]
   );
+  res.send(result);
+});
+app.post("/history-detail", validateAuth, async (req, res) => {
+  const { id } = req.userData;
+  const { date } = req.body;
+
+  const today = new Date();
+
+  const month = [
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
+  ];
+
+  const todayDate = `${today.getDate()} ${
+    month[today.getMonth()]
+  } ${today.getFullYear()}`;
+
+  try {
+    const [hariRes] = await connection.query(
+      "SELECT * FROM hari WHERE tanggal = ?",
+      [todayDate]
+    );
+    const hari = hariRes[0];
+
+    const [hadirRes] = await connection.query(
+      "SELECT * FROM absensi WHERE pengguna_id = ? AND hari_id = ? AND tipe_absensi = 'HADIR'",
+      [id, hari.id]
+    );
+
+    const [pulangRes] = await connection.query(
+      "SELECT * FROM absensi WHERE pengguna_id = ? AND hari_id = ? AND tipe_absensi = 'PULANG'",
+      [id, hari.id]
+    );
+
+    const hadir = hadirRes[0];
+    const pulang = pulangRes[0];
+
+    console.log(hadirRes[0]);
+    res.send({
+      tanggal: hadir.tanggal,
+      iso_waktu: hadir.iso_waktu,
+      jam_datang: hadir.jam,
+      jam_pulang: pulang.jam,
+      status: hadir.status,
+    });
+  } catch (error) {
+    console.log(error.message);
+    res.send(error.message);
+  }
+});
+app.get("/has-absen", validateAuth, async (req, res) => {
+  const { id } = req.userData;
+  const today = new Date();
+
+  const month = [
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
+  ];
+
+  const date = `${today.getDate()} ${
+    month[today.getMonth()]
+  } ${today.getFullYear()}`;
+
+  try {
+    const [result] = await connection.query(
+      "SELECT * FROM absensi WHERE pengguna_id = ? AND tanggal = ?",
+      [id, date]
+    );
+
+    if (result.length > 0) res.send(true);
+    else res.send(false);
+  } catch (error) {
+    res.sendStatus(404);
+  }
+});
+app.get("/day", async (req, res) => {
+  const [result] = await connection.query("SELECT * FROM hari");
   res.send(result);
 });
 
