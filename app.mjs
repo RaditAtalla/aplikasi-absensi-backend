@@ -191,7 +191,7 @@ app.get("/download-data", async (req, res) => {
 
   try {
     const [result] = await connection.query(
-      "SELECT hari.hari, absensi.jam, absensi.status, pengguna.nama, pengguna.email, pengguna.nisn FROM absensi INNER JOIN pengguna ON pengguna.id = absensi.pengguna_id INNER JOIN hari ON hari.id = absensi.hari_id"
+      "SELECT hari.hari, absensi.jam, absensi.tipe_absensi, pengguna.nama, pengguna.email, pengguna.nisn FROM absensi INNER JOIN pengguna ON pengguna.id = absensi.pengguna_id INNER JOIN hari ON hari.id = absensi.hari_id"
     );
 
     const filePath = path.join(__dirname, "data.csv");
