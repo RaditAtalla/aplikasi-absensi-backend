@@ -191,7 +191,7 @@ app.get("/download-data", async (req, res) => {
 
   try {
     const [result] = await connection.query(
-      "SELECT absensi.jam, absensi.status, pengguna.nama, pengguna.email, pengguna.nisn FROM absensi INNER JOIN pengguna ON pengguna.id = absensi.pengguna_id"
+      "SELECT hari.hari absensi.jam, absensi.status, pengguna.nama, pengguna.email, pengguna.nisn FROM absensi INNER JOIN pengguna ON pengguna.id = absensi.pengguna_id INNER JOIN hari ON hari.id = absensi.hari_id"
     );
 
     const filePath = path.join(__dirname, "data.csv");
@@ -349,9 +349,31 @@ app.get("/has-absen", validateAuth, async (req, res) => {
     res.sendStatus(404);
   }
 });
-app.get("/day", async (req, res) => {
-  const [result] = await connection.query("SELECT * FROM hari");
-  res.send(result);
+app.get("/day", validateAuth, async (req, res) => {
+  const { id } = req.userData;
+  try {
+    const [result] = await connection.query(
+      "SELECT hari.tanggal, hari.hari, absensi.hari_id, absensi.id FROM hari INNER JOIN absensi ON hari.id = absensi.hari_id WHERE pengguna_id = ?",
+      [id]
+    );
+
+    const uniqueDates = [];
+    const data = [];
+    result.forEach((r) => {
+      if (!uniqueDates.includes(r.tanggal)) {
+        uniqueDates.push(r.tanggal);
+        data.push({
+          tanggal: r.tanggal,
+          hari: r.hari,
+          hari_id: r.hari_id,
+          id: r.id,
+        });
+      }
+    });
+    res.send(data);
+  } catch (error) {
+    console.log(error.message);
+  }
 });
 
 app.listen(3000);
