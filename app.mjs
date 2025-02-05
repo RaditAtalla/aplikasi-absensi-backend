@@ -191,7 +191,7 @@ app.get("/download-data", async (req, res) => {
 
   try {
     const [result] = await connection.query(
-      "SELECT hari.hari absensi.jam, absensi.status, pengguna.nama, pengguna.email, pengguna.nisn FROM absensi INNER JOIN pengguna ON pengguna.id = absensi.pengguna_id INNER JOIN hari ON hari.id = absensi.hari_id"
+      "SELECT hari.hari, absensi.jam, absensi.status, pengguna.nama, pengguna.email, pengguna.nisn FROM absensi INNER JOIN pengguna ON pengguna.id = absensi.pengguna_id INNER JOIN hari ON hari.id = absensi.hari_id"
     );
 
     const filePath = path.join(__dirname, "data.csv");
@@ -333,19 +333,29 @@ app.get("/has-absen", validateAuth, async (req, res) => {
     "Desember",
   ];
 
-  const date = `${today.getDate()} ${
-    month[today.getMonth()]
-  } ${today.getFullYear()}`;
-
   try {
+    const [absensi] = await connection.query(
+      "SELECT * FROM absensi WHERE pengguna_id = ?",
+      [id]
+    );
+    let todayIsoWaktu = "";
+    let tempIsoWaktu;
+    absensi.forEach((a) => {
+      tempIsoWaktu = new Date(a.iso_waktu);
+      if (tempIsoWaktu.toLocaleDateString() == today.toLocaleDateString()) {
+        todayIsoWaktu = a.iso_waktu;
+      }
+    });
+
     const [result] = await connection.query(
-      "SELECT * FROM absensi WHERE pengguna_id = ? AND tanggal = ?",
-      [id, date]
+      "SELECT * FROM absensi WHERE pengguna_id = ? AND iso_waktu = ?",
+      [id, todayIsoWaktu]
     );
 
     if (result.length > 0) res.send(true);
     else res.send(false);
   } catch (error) {
+    console.log(error.message);
     res.sendStatus(404);
   }
 });
