@@ -136,7 +136,7 @@ app.post("/", validateAuth, async (req, res) => {
       if (getDay.length > 0) {
         const dayId = getDay[0].id;
 
-        const [absensi] = await connection.query(
+        await connection.query(
           "INSERT INTO absensi(pengguna_id, lokasi_id, iso_waktu, status, periode, periode_slug, tipe_absensi, jam, hari_id) VALUES(?, ?, now(), ?, ?, ?, ?, ?, ?)",
           [
             id,
@@ -160,7 +160,7 @@ app.post("/", validateAuth, async (req, res) => {
         const dayId = day.insertId;
 
         // melakukan query ke database table absensi
-        const [absensi] = await connection.query(
+        await connection.query(
           "INSERT INTO absensi(pengguna_id, lokasi_id, iso_waktu, status, periode, periode_slug, tipe_absensi, jam, hari_id) VALUES(?, ?, now(), ?, ?, ?, ?, ?, ?)",
           [
             id,
@@ -216,12 +216,11 @@ app.get("/download-data", async (req, res) => {
 });
 // fungsi ini untuk mengatur login user
 app.post("/login", async (req, res) => {
-  console.log("LOGIN");
   try {
     // menerima name dan password dari req.body yang dikirimkan oleh frontend
     const { email, password } = req.body;
 
-    // melakukan query untuk mencari akun yang sesuai dengan name tersebut
+    // melakukan query untuk mencari akun yang sesuai dengan email tersebut
     const [result] = await connection.query(
       "SELECT * FROM pengguna WHERE email = ?",
       [email]
@@ -258,7 +257,6 @@ app.get("/history", validateAuth, async (req, res) => {
 });
 app.post("/history-detail", validateAuth, async (req, res) => {
   const { id } = req.userData;
-  const { date } = req.body;
 
   const today = new Date();
 
@@ -301,7 +299,6 @@ app.post("/history-detail", validateAuth, async (req, res) => {
     const hadir = hadirRes[0];
     const pulang = pulangRes[0];
 
-    console.log(hadirRes[0]);
     res.send({
       tanggal: hadir.tanggal,
       iso_waktu: hadir.iso_waktu,
@@ -317,21 +314,6 @@ app.post("/history-detail", validateAuth, async (req, res) => {
 app.get("/has-absen", validateAuth, async (req, res) => {
   const { id } = req.userData;
   const today = new Date();
-
-  const month = [
-    "Januari",
-    "Februari",
-    "Maret",
-    "April",
-    "Mei",
-    "Juni",
-    "Juli",
-    "Agustus",
-    "September",
-    "Oktober",
-    "November",
-    "Desember",
-  ];
 
   try {
     const [absensi] = await connection.query(
